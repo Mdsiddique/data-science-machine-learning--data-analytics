@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Sales Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            width: 100%;
+        }
+        #upload-section {
+            margin: 20px;
+        }
+        .chart {
+            margin: 20px 0;
+            width: 90%;
+            max-width: 900px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Interactive Sales Dashboard</h1>
+        <p>Author: MD A Siddique</p>
+    </header>
+
+    <section id="upload-section">
+        <input type="file" id="file-input" accept="application/json">
+        <p>Upload your JSON file to generate the dashboard.</p>
+    </section>
+
+    <div id="charts-container">
+        <div id="total-sales" class="chart"></div>
+        <div id="sales-by-category" class="chart"></div>
+        <div id="sales-by-season" class="chart"></div>
+        <div id="customer-demographics" class="chart"></div>
+        <div id="purchase-frequency" class="chart"></div>
+        <div id="average-purchase-value" class="chart"></div>
+        <div id="sales-by-payment-method" class="chart"></div>
+        <div id="discount-effectiveness" class="chart"></div>
+        <div id="shipping-preferences" class="chart"></div>
+        <div id="customer-feedback" class="chart"></div>
+    </div>
+
+    <script>
+        document.getElementById('file-input').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = JSON.parse(e.target.result);
+                generateDashboard(data);
+            };
+            reader.readAsText(file);
+        });
+
+        function generateDashboard(data) {
+            // Total Sales Revenue
+            const totalSales = data.reduce((sum, entry) => sum + entry["Purchase Amount (USD)"], 0);
+            Plotly.newPlot('total-sales', [{
+                values: [totalSales],
+                labels: ['Total Sales Revenue'],
+                type: 'pie'
+            }], {
+                title: 'Total Sales Revenue'
+            });
+
+            // Sales by Category
+            const categories = [...new Set(data.map(entry => entry.Category))];
+            const salesByCategory = categories.map(cat => data.filter(entry => entry.Category === cat).reduce((sum, entry) => sum + entry["Purchase Amount (USD)"], 0));
+            Plotly.newPlot('sales-by-category', [{
+                x: categories,
+                y: salesByCategory,
+                type: 'bar'
+            }], {
+                title: 'Sales by Category'
+            });
+
+            // Sales by Season
+            const seasons = [...new Set(data.map(entry => entry.Season))];
+            const salesBySeason = seasons.map(season => data.filter(entry => entry.Season === season).reduce((sum, entry) => sum + entry["Purchase Amount (USD)"], 0));
+            Plotly.newPlot('sales-by-season', [{
+                x: seasons,
+                y: salesBySeason,
+                type: 'bar'
+            }], {
+                title: 'Sales by Season'
+            });
+
+            // Customer Demographics
+            const genders = ['Male', 'Female'];
+            const genderCount = genders.map(gender => data.filter(entry => entry.Gender === gender).length);
+            Plotly.newPlot('customer-demographics', [{
+                labels: genders,
+                values: genderCount,
+                type: 'pie'
+            }], {
+                title: 'Customer Demographics'
+            });
+
+            // Purchase Frequency
+            const frequencies = [...new Set(data.map(entry => entry["Frequency of Purchases"]))];
+            const frequencyCount = frequencies.map(freq => data.filter(entry => entry["Frequency of Purchases"] === freq).length);
+            Plotly.newPlot('purchase-frequency', [{
+                x: frequencies,
+                y: frequencyCount,
+                type: 'bar'
+            }], {
+                title: 'Purchase Frequency'
+            });
+
+            // Average Purchase Value
+            const averagePurchaseValue = (totalSales / data.length).toFixed(2);
+            Plotly.newPlot('average-purchase-value', [{
+                values: [averagePurchaseValue],
+                labels: ['Avg Purchase Value'],
+                type: 'pie'
+            }], {
+                title: 'Average Purchase Value'
+            });
+
+            // Sales by Payment Method
+            const paymentMethods = [...new Set(data.map(entry => entry["Payment Method"]))];
+            const salesByPaymentMethod = paymentMethods.map(method => data.filter(entry => entry["Payment Method"] === method).reduce((sum, entry) => sum + entry["Purchase Amount (USD)"], 0));
+            Plotly.newPlot('sales-by-payment-method', [{
+                x: paymentMethods,
+                y: salesByPaymentMethod,
+                type: 'bar'
+            }], {
+                title: 'Sales by Payment Method'
+            });
+
+            // Discount Effectiveness
+            const discountGroups = ['Yes', 'No'];
+            const salesByDiscount = discountGroups.map(group => data.filter(entry => entry["Discount Applied"] === group).reduce((sum, entry) => sum + entry["Purchase Amount (USD)"], 0));
+            Plotly.newPlot('discount-effectiveness', [{
+                x: discountGroups,
+                y: salesByDiscount,
+                type: 'bar'
+            }], {
+                title: 'Discount Effectiveness'
+            });
+
+            // Shipping Preferences
+            const shippingTypes = [...new Set(data.map(entry => entry["Shipping Type"]))];
+            const shippingCount = shippingTypes.map(type => data.filter(entry => entry["Shipping Type"] === type).length);
+            Plotly.newPlot('shipping-preferences', [{
+                labels: shippingTypes,
+                values: shippingCount,
+                type: 'pie'
+            }], {
+                title: 'Shipping Preferences'
+            });
+
+            // Customer Feedback
+            const ratings = data.map(entry => entry["Review Rating"]);
+            const trace = {
+                x: ratings,
+                type: 'box',
+                boxpoints: 'all',
+                jitter: 0.5,
+                pointpos: -1.8,
+                marker: { color: 'rgb(7,40,89)' },
+                line: { width: 1 }
+            };
+
+            Plotly.newPlot('customer-feedback', [trace], {
+                title: 'Customer Feedback Ratings',
+                yaxis: {
+                    title: 'Rating Scale'
+                },
+                xaxis: {
+                    title: 'Customer Ratings'
+                }
+            });
+        }
+    </script>
+</body>
+</html>
