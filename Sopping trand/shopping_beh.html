@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Data Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #header {
+            text-align: center;
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        #upload-container {
+            margin: 20px;
+            text-align: center;
+        }
+        #dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .chart {
+            border: 1px solid #ccc;
+            padding: 20px;
+        }
+        .title {
+            text-align: center;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        #author {
+            text-align: center;
+            font-size: 14px;
+            margin-top: 30px;
+            color: #888;
+        }
+        .header-text {
+            font-size: 36px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <div class="header-text">Sales Data Dashboard</div>
+    <p>Interactive Visualizations based on Customer Purchase Data</p>
+</div>
+
+<div id="upload-container">
+    <input type="file" id="upload" accept=".json">
+    <p>Upload your sales data JSON file</p>
+</div>
+
+<div id="dashboard">
+    <div class="chart" id="gender-chart">
+        <div class="title">Customer Gender Distribution</div>
+        <div id="gender-chart-div"></div>
+    </div>
+    <div class="chart" id="category-chart">
+        <div class="title">Sales by Category</div>
+        <div id="category-chart-div"></div>
+    </div>
+    <div class="chart" id="age-chart">
+        <div class="title">Customer Age Distribution</div>
+        <div id="age-chart-div"></div>
+    </div>
+    <div class="chart" id="location-chart">
+        <div class="title">Sales by Location</div>
+        <div id="location-chart-div"></div>
+    </div>
+    <div class="chart" id="purchase-chart">
+        <div class="title">Average Purchase Amount</div>
+        <div id="purchase-chart-div"></div>
+    </div>
+    <div class="chart" id="review-chart">
+        <div class="title">Review Rating Distribution</div>
+        <div id="review-chart-div"></div>
+    </div>
+    <div class="chart" id="subscription-chart">
+        <div class="title">Subscription Status</div>
+        <div id="subscription-chart-div"></div>
+    </div>
+    <div class="chart" id="shipping-chart">
+        <div class="title">Shipping Type Usage</div>
+        <div id="shipping-chart-div"></div>
+    </div>
+</div>
+
+<div id="author">
+    <p>Author: MD A Siddique</p>
+</div>
+
+<script>
+    document.getElementById("upload").addEventListener("change", function(event) {
+        let file = event.target.files[0];
+        if (file && file.name.endsWith(".json")) {
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                let data = JSON.parse(e.target.result);
+                generateDashboard(data);
+            };
+            reader.readAsText(file);
+        } else {
+            alert("Please upload a valid JSON file.");
+        }
+    });
+
+    function generateDashboard(data) {
+        // Gender Distribution
+        let genderData = getCategoryData(data, 'Gender');
+        let genderChartData = {
+            labels: Object.keys(genderData),
+            values: Object.values(genderData),
+            type: 'pie',
+        };
+        Plotly.newPlot('gender-chart-div', [genderChartData]);
+
+        // Sales by Category
+        let categoryData = getCategoryData(data, 'Category');
+        let categoryChartData = {
+            x: Object.keys(categoryData),
+            y: Object.values(categoryData),
+            type: 'bar',
+        };
+        Plotly.newPlot('category-chart-div', [categoryChartData]);
+
+        // Customer Age Distribution (Box Plot)
+        let ageData = data.map(item => item.Age);
+        let ageChartData = {
+            y: ageData,
+            type: 'box',
+            boxmean: true,
+        };
+        Plotly.newPlot('age-chart-div', [ageChartData]);
+
+        // Sales by Location
+        let locationData = getCategoryData(data, 'Location');
+        let locationChartData = {
+            x: Object.keys(locationData),
+            y: Object.values(locationData),
+            type: 'bar',
+        };
+        Plotly.newPlot('location-chart-div', [locationChartData]);
+
+        // Average Purchase Amount (Donut Chart)
+        let purchaseData = data.map(item => item['Purchase Amount (USD)']);
+        let avgPurchaseAmount = purchaseData.reduce((sum, val) => sum + val, 0) / purchaseData.length;
+        let purchaseChartData = {
+            values: [avgPurchaseAmount, 100 - avgPurchaseAmount],
+            labels: ['Average Purchase', 'Other'],
+            type: 'pie',
+            hole: 0.4,
+        };
+        Plotly.newPlot('purchase-chart-div', [purchaseChartData]);
+
+        // Review Rating Distribution (Histogram with customized bins)
+        let reviewData = data.map(item => item['Review Rating']);
+        let reviewChartData = {
+            x: reviewData,
+            type: 'histogram',
+            xbins: { start: 0, end: 5, size: 0.5 },  // Customizing bin size for clarity
+            marker: { color: '#ff7f0e' },  // Set color for the bars
+        };
+        let layout = {
+            xaxis: { title: 'Review Rating' },
+            yaxis: { title: 'Frequency' },
+            title: 'Review Rating Distribution (Histogram)',
+        };
+        Plotly.newPlot('review-chart-div', [reviewChartData], layout);
+
+        // Subscription Status
+        let subscriptionData = getCategoryData(data, 'Subscription Status');
+        let subscriptionChartData = {
+            labels: Object.keys(subscriptionData),
+            values: Object.values(subscriptionData),
+            type: 'pie',
+        };
+        Plotly.newPlot('subscription-chart-div', [subscriptionChartData]);
+
+        // Shipping Type Usage
+        let shippingData = getCategoryData(data, 'Shipping Type');
+        let shippingChartData = {
+            labels: Object.keys(shippingData),
+            values: Object.values(shippingData),
+            type: 'pie',
+        };
+        Plotly.newPlot('shipping-chart-div', [shippingChartData]);
+    }
+
+    function getCategoryData(data, category) {
+        return data.reduce((acc, item) => {
+            let key = item[category];
+            if (key) {
+                acc[key] = (acc[key] || 0) + 1;
+            }
+            return acc;
+        }, {});
+    }
+</script>
+
+</body>
+</html>
