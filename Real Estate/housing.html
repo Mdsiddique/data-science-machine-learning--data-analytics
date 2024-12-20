@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Estate Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+        .chart {
+            width: 48%;
+            margin-bottom: 20px;
+        }
+        #upload {
+            display: block;
+            margin: 20px auto;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 14px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Real Estate Data Dashboard</h1>
+<input type="file" id="upload" accept=".json">
+
+<div class="container">
+    <!-- Placeholders for the charts -->
+    <div class="chart" id="price-distribution"></div>
+    <div class="chart" id="area-vs-price"></div>
+    <div class="chart" id="bedroom-price"></div>
+    <div class="chart" id="property-features"></div>
+    <div class="chart" id="location-price"></div>
+</div>
+
+<div class="footer">
+    <p>Dashboard created by MD A Siddique</p>
+</div>
+
+<script>
+    document.getElementById('upload').addEventListener('change', function(event) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = JSON.parse(e.target.result);
+            createDashboard(data);
+        };
+        reader.readAsText(event.target.files[0]);
+    });
+
+    function createDashboard(data) {
+        // 1. Price Distribution (Histogram)
+        const priceData = data.map(item => item.price);
+        const priceLayout = {
+            title: 'Price Distribution',
+            xaxis: { title: 'Price (USD)' },
+            yaxis: { title: 'Frequency' }
+        };
+        const priceTrace = {
+            x: priceData,
+            type: 'histogram',
+            nbinsx: 20
+        };
+        Plotly.newPlot('price-distribution', [priceTrace], priceLayout);
+
+        // 2. Area vs Price (Scatter Plot)
+        const areaData = data.map(item => item.area);
+        const areaPriceTrace = {
+            x: areaData,
+            y: priceData,
+            mode: 'markers',
+            type: 'scatter',
+            marker: { size: 10 }
+        };
+        const areaPriceLayout = {
+            title: 'Area vs. Price',
+            xaxis: { title: 'Area (sq ft)' },
+            yaxis: { title: 'Price (USD)' }
+        };
+        Plotly.newPlot('area-vs-price', [areaPriceTrace], areaPriceLayout);
+
+        // 3. Bedroom Count vs Price (Bar Chart)
+        const bedroomData = data.map(item => item.bedrooms);
+        const bedroomPriceTrace = {
+            x: bedroomData,
+            y: priceData,
+            type: 'box'
+        };
+        const bedroomPriceLayout = {
+            title: 'Bedroom Count vs. Price',
+            xaxis: { title: 'Bedrooms' },
+            yaxis: { title: 'Price (USD)' }
+        };
+        Plotly.newPlot('bedroom-price', [bedroomPriceTrace], bedroomPriceLayout);
+
+        // 4. Property Features (Pie Chart)
+        const features = ['mainroad', 'guestroom', 'basement', 'hotwaterheating', 'airconditioning', 'parking', 'prefarea', 'furnishingstatus'];
+        const featureCounts = features.map(feature => {
+            return data.filter(item => item[feature] === 'yes').length;
+        });
+        const featureLabels = features.map(feature => feature.charAt(0).toUpperCase() + feature.slice(1));
+
+        const featureTrace = {
+            labels: featureLabels,
+            values: featureCounts,
+            type: 'pie'
+        };
+        const featureLayout = {
+            title: 'Property Features'
+        };
+        Plotly.newPlot('property-features', [featureTrace], featureLayout);
+
+        // 5. Price vs Location (Bar Chart, assuming Location is categorical)
+        const locationData = [...new Set(data.map(item => item.location))];
+        const locationPrice = locationData.map(location => {
+            const prices = data.filter(item => item.location === location).map(item => item.price);
+            return prices.reduce((sum, price) => sum + price, 0) / prices.length;
+        });
+
+        const locationTrace = {
+            x: locationData,
+            y: locationPrice,
+            type: 'bar'
+        };
+        const locationLayout = {
+            title: 'Price vs Location',
+            xaxis: { title: 'Location' },
+            yaxis: { title: 'Average Price (USD)' }
+        };
+        Plotly.newPlot('location-price', [locationTrace], locationLayout);
+    }
+</script>
+
+</body>
+</html>
