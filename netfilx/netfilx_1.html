@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movie and TV Show Dashboard</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { text-align: center; }
+    .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .chart { width: 100%; height: 400px; }
+    input[type="file"] { margin: 20px 0; display: block; }
+    footer { text-align: center; margin-top: 30px; font-size: 14px; color: gray; }
+  </style>
+</head>
+<body>
+  <h1>Movie and TV Show Dashboard</h1>
+  <input type="file" id="upload" accept=".json">
+  <div class="dashboard">
+    <!-- Updated Genre Distribution to Horizontal Bar Chart -->
+    <div id="genre-distribution" class="chart" style="height: 500px;"></div>
+    <div id="release-year-trend" class="chart"></div>
+    <div id="rating-distribution" class="chart"></div>
+    <div id="duration-distribution" class="chart"></div>
+    <div id="country-of-origin" class="chart"></div>
+    <div id="movies-vs-tv-shows" class="chart"></div>
+    <div id="content-added-over-time" class="chart"></div>
+  </div>
+
+  <footer>
+    <p>Dashboard created by MD A Siddique</p>
+  </footer>
+
+  <script>
+    document.getElementById('upload').addEventListener('change', handleFileUpload, false);
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = JSON.parse(e.target.result);
+        generateDashboard(data);
+      };
+      reader.readAsText(file);
+    }
+
+    function generateDashboard(data) {
+      // Prepare data for visualizations
+      const genres = [];
+      const releaseYears = [];
+      const ratings = [];
+      const durations = [];
+      const countries = [];
+      const typeCount = { 'Movie': 0, 'TV Show': 0 };
+      const dateAdded = [];
+
+      data.forEach(item => {
+        genres.push(item.listed_in);
+        releaseYears.push(item.release_year);
+        ratings.push(item.rating);
+        durations.push(parseInt(item.duration.split(' ')[0])); // Extracting minutes
+        countries.push(item.country);
+        typeCount[item.type] += 1;
+        dateAdded.push(new Date(item.date_added));
+      });
+
+      // Visualization 1: Genre Distribution (Horizontal Bar Chart)
+      const genreCount = genres.reduce((acc, genre) => {
+        acc[genre] = (acc[genre] || 0) + 1;
+        return acc;
+      }, {});
+      const genreLabels = Object.keys(genreCount);
+      const genreValues = Object.values(genreCount);
+      const genreChart = {
+        x: genreValues,
+        y: genreLabels,
+        type: 'bar',
+        orientation: 'h',
+        marker: {
+          color: '#4C97FF',
+        }
+      };
+      Plotly.newPlot('genre-distribution', [genreChart], {
+        title: {
+          text: "Genre Distribution",
+          font: {
+            size: 16, // Smaller font size for title
+            family: 'Arial, sans-serif',
+          }
+        },
+        showlegend: false,
+        height: 500,
+        xaxis: {
+          tickfont: { size: 12 }, // Smaller font size for x-axis labels
+        },
+        yaxis: {
+          tickfont: { size: 10 }, // Smaller font size for y-axis labels
+        }
+      });
+
+      // Visualization 2: Release Year Trend (Line Chart)
+      const releaseYearCount = {};
+      releaseYears.forEach(year => {
+        releaseYearCount[year] = (releaseYearCount[year] || 0) + 1;
+      });
+      const releaseYearLabels = Object.keys(releaseYearCount);
+      const releaseYearValues = Object.values(releaseYearCount);
+      const releaseYearChart = {
+        x: releaseYearLabels,
+        y: releaseYearValues,
+        type: 'scatter',
+        mode: 'lines+markers'
+      };
+      Plotly.newPlot('release-year-trend', [releaseYearChart], { title: 'Release Year Trend' });
+
+      // Visualization 3: Rating Distribution (Bar Chart)
+      const ratingCount = ratings.reduce((acc, rating) => {
+        acc[rating] = (acc[rating] || 0) + 1;
+        return acc;
+      }, {});
+      const ratingLabels = Object.keys(ratingCount);
+      const ratingValues = Object.values(ratingCount);
+      const ratingChart = {
+        x: ratingLabels,
+        y: ratingValues,
+        type: 'bar'
+      };
+      Plotly.newPlot('rating-distribution', [ratingChart], { title: 'Rating Distribution' });
+
+      // Visualization 4: Duration Distribution (Histogram)
+      const durationChart = {
+        x: durations,
+        type: 'histogram'
+      };
+      Plotly.newPlot('duration-distribution', [durationChart], { title: 'Duration Distribution' });
+
+      // Visualization 5: Country of Origin (Bar Chart)
+      const countryCount = countries.reduce((acc, country) => {
+        acc[country] = (acc[country] || 0) + 1;
+        return acc;
+      }, {});
+      const countryLabels = Object.keys(countryCount);
+      const countryValues = Object.values(countryCount);
+      const countryChart = {
+        x: countryLabels,
+        y: countryValues,
+        type: 'bar'
+      };
+      Plotly.newPlot('country-of-origin', [countryChart], { title: 'Country of Origin' });
+
+      // Visualization 6: Movies vs TV Shows (Donut Chart)
+      const movieTvChart = {
+        labels: Object.keys(typeCount),
+        values: Object.values(typeCount),
+        type: 'pie',
+        hole: 0.4
+      };
+      Plotly.newPlot('movies-vs-tv-shows', [movieTvChart], { title: 'Movies vs TV Shows' });
+
+      // Visualization 7: Content Added Over Time (Area Chart)
+      const dateAddedCounts = {};
+      dateAdded.forEach(date => {
+        const monthYear = `${date.getMonth() + 1}-${date.getFullYear()}`;
+        dateAddedCounts[monthYear] = (dateAddedCounts[monthYear] || 0) + 1;
+      });
+      const dateAddedLabels = Object.keys(dateAddedCounts);
+      const dateAddedValues = Object.values(dateAddedCounts);
+      const contentAddedChart = {
+        x: dateAddedLabels,
+        y: dateAddedValues,
+        type: 'scatter',
+        mode: 'lines',
+        fill: 'tozeroy'
+      };
+      Plotly.newPlot('content-added-over-time', [contentAddedChart], { title: 'Content Added Over Time' });
+    }
+  </script>
+</body>
+</html>
