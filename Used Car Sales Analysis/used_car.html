@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Sales Performance Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <h1>Used Car Sales Performance Dashboard</h1>
+    
+    <!-- Upload File Input -->
+    <input type="file" id="upload" accept=".json" onchange="loadData(event)">
+    
+    <!-- Dashboard Visualizations -->
+    <div id="dashboard">
+        <div id="price-by-brand-model" style="height: 400px;"></div>
+        <div id="price-vs-age-mileage" style="height: 400px;"></div>
+        <div id="fuel-transmission-breakdown" style="height: 400px;"></div>
+        <div id="sales-time-series" style="height: 400px;"></div>
+        <div id="price-by-owner-type" style="height: 400px;"></div>
+    </div>
+
+    <script>
+        let carData = [];
+
+        // Load and parse the uploaded JSON file
+        function loadData(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                carData = JSON.parse(e.target.result);
+                createDashboard();
+            };
+            reader.readAsText(file);
+        }
+
+        // Create the dashboard visualizations
+        function createDashboard() {
+            // Data Preprocessing
+            let brands = [];
+            let models = [];
+            let ages = [];
+            let kmDriven = [];
+            let prices = [];
+            let fuelTypes = [];
+            let transmissions = [];
+            let owners = [];
+            let dates = [];
+
+            carData.forEach(car => {
+                brands.push(car.Brand);
+                models.push(car.model);
+                ages.push(car.Age);
+                kmDriven.push(parseInt(car.kmDriven.replace(/\D/g, "")));
+                prices.push(parseInt(car.AskPrice.replace(/[^\d]/g, "")));
+                fuelTypes.push(car.FuelType);
+                transmissions.push(car.Transmission);
+                owners.push(car.Owner);
+                dates.push(car.PostedDate);
+            });
+
+            // Average Ask Price by Brand and Model
+            const avgPriceByBrandModel = {};
+            carData.forEach(car => {
+                const brandModel = car.Brand + ' ' + car.model;
+                if (!avgPriceByBrandModel[brandModel]) {
+                    avgPriceByBrandModel[brandModel] = [];
+                }
+                avgPriceByBrandModel[brandModel].push(parseInt(car.AskPrice.replace(/[^\d]/g, "")));
+            });
+            const avgBrandModel = Object.keys(avgPriceByBrandModel);
+            const avgPrices = avgBrandModel.map(key => {
+                const total = avgPriceByBrandModel[key].reduce((sum, price) => sum + price, 0);
+                return total / avgPriceByBrandModel[key].length;
+            });
+
+            const trace1 = {
+                x: avgBrandModel,
+                y: avgPrices,
+                type: 'bar',
+                name: 'Avg Price by Brand and Model'
+            };
+
+            const layout1 = {
+                title: 'Average Ask Price by Brand and Model',
+                xaxis: { title: 'Brand and Model' },
+                yaxis: { title: 'Average Price (₹)' }
+            };
+
+            Plotly.newPlot('price-by-brand-model', [trace1], layout1);
+
+            // Price vs Age and Mileage
+            const trace2 = {
+                x: ages,
+                y: kmDriven,
+                mode: 'markers',
+                type: 'scatter',
+                text: prices,
+                marker: { size: 10 }
+            };
+
+            const layout2 = {
+                title: 'Price vs Age and Mileage',
+                xaxis: { title: 'Car Age (Years)' },
+                yaxis: { title: 'Mileage (km)' }
+            };
+
+            Plotly.newPlot('price-vs-age-mileage', [trace2], layout2);
+
+            // Fuel Type and Transmission Breakdown
+            const fuelTypeCount = {};
+            const transmissionCount = {};
+
+            fuelTypes.forEach(fuel => {
+                fuelTypeCount[fuel] = (fuelTypeCount[fuel] || 0) + 1;
+            });
+            transmissions.forEach(trans => {
+                transmissionCount[trans] = (transmissionCount[trans] || 0) + 1;
+            });
+
+            const fuelData = Object.keys(fuelTypeCount).map(fuel => ({
+                label: fuel,
+                value: fuelTypeCount[fuel]
+            }));
+            const transmissionData = Object.keys(transmissionCount).map(trans => ({
+                label: trans,
+                value: transmissionCount[trans]
+            }));
+
+            const trace3 = {
+                labels: fuelData.map(item => item.label),
+                values: fuelData.map(item => item.value),
+                type: 'pie',
+                name: 'Fuel Type Breakdown'
+            };
+
+            const trace4 = {
+                labels: transmissionData.map(item => item.label),
+                values: transmissionData.map(item => item.value),
+                type: 'pie',
+                name: 'Transmission Breakdown'
+            };
+
+            const layout3 = {
+                title: 'Fuel Type and Transmission Breakdown',
+                showlegend: true
+            };
+
+            Plotly.newPlot('fuel-transmission-breakdown', [trace3, trace4], layout3);
+
+            // Sales over Time (Posted Date)
+            const dateCount = {};
+            dates.forEach(date => {
+                dateCount[date] = (dateCount[date] || 0) + 1;
+            });
+
+            const trace5 = {
+                x: Object.keys(dateCount),
+                y: Object.values(dateCount),
+                mode: 'lines+markers',
+                type: 'scatter',
+                name: 'Sales over Time'
+            };
+
+            const layout4 = {
+                title: 'Sales Over Time',
+                xaxis: { title: 'Posted Date' },
+                yaxis: { title: 'Number of Cars Listed' }
+            };
+
+            Plotly.newPlot('sales-time-series', [trace5], layout4);
+
+            // Average Ask Price by Owner Type
+            const avgPriceByOwner = {};
+            carData.forEach(car => {
+                if (!avgPriceByOwner[car.Owner]) {
+                    avgPriceByOwner[car.Owner] = [];
+                }
+                avgPriceByOwner[car.Owner].push(parseInt(car.AskPrice.replace(/[^\d]/g, "")));
+            });
+
+            const ownerTypes = Object.keys(avgPriceByOwner);
+            const avgPricesByOwner = ownerTypes.map(owner => {
+                const total = avgPriceByOwner[owner].reduce((sum, price) => sum + price, 0);
+                return total / avgPriceByOwner[owner].length;
+            });
+
+            const trace6 = {
+                x: ownerTypes,
+                y: avgPricesByOwner,
+                type: 'bar',
+                name: 'Avg Price by Owner Type'
+            };
+
+            const layout5 = {
+                title: 'Average Ask Price by Owner Type',
+                xaxis: { title: 'Owner Type' },
+                yaxis: { title: 'Average Price (₹)' }
+            };
+
+            Plotly.newPlot('price-by-owner-type', [trace6], layout5);
+        }
+    </script>
+</body>
+</html>
