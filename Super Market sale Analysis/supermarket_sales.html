@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Dashboard</title>
+    <!-- Plotly.js CDN -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        /* Centering AOV Gauge Chart */
+        #averageOrderValue {
+            width: 50%;
+            height: 400px;
+            margin: 0 auto;
+        }
+
+        /* Footer Styling */
+        footer {
+            text-align: center;
+            padding: 20px;
+            margin-top: 50px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">Sales Dashboard</h1>
+
+    <!-- File Upload Section -->
+    <div style="text-align: center;">
+        <input type="file" id="fileInput" accept=".json" />
+        <p>Upload your sales data JSON file</p>
+    </div>
+
+    <!-- Visualization Containers -->
+    <div id="totalSalesByBranch" style="width: 100%; height: 400px;"></div>
+    <div id="totalSalesByCity" style="width: 100%; height: 400px;"></div>
+    <div id="salesTrends" style="width: 100%; height: 400px;"></div>
+    <div id="customerTypeDistribution" style="width: 100%; height: 400px;"></div>
+    <div id="genderSalesDistribution" style="width: 100%; height: 400px;"></div>
+    <div id="productLineSales" style="width: 100%; height: 400px;"></div>
+
+    <!-- Centered AOV Gauge Chart -->
+    <div id="averageOrderValue" style="width: 100%; height: 400px; margin: 0 auto;"></div>
+
+    <div id="paymentMethodDistribution" style="width: 100%; height: 400px;"></div>
+    <div id="grossMarginByProductLine" style="width: 100%; height: 400px;"></div>
+    <div id="customerSatisfactionVsSales" style="width: 100%; height: 400px;"></div>
+
+    <!-- Footer Section with Author Name -->
+    <footer>
+        <p>Dashboard created by <strong>MD A Siddique</strong></p>
+    </footer>
+
+    <script>
+        // Handle File Upload
+        document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const jsonData = JSON.parse(e.target.result);
+                    processAndVisualizeData(jsonData);
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function processAndVisualizeData(data) {
+            // Ensure data is in array format
+            const salesData = Array.isArray(data) ? data : [data];
+
+            // Extract relevant fields
+            const branches = salesData.map(item => item.Branch);
+            const cities = salesData.map(item => item.City);
+            const customerTypes = salesData.map(item => item["Customer type"]);
+            const genders = salesData.map(item => item.Gender);
+            const productLines = salesData.map(item => item["Product line"]);
+            const unitPrices = salesData.map(item => item["Unit price"]);
+            const quantities = salesData.map(item => item.Quantity);
+            const dates = salesData.map(item => new Date(item.Date));
+            const totalSales = salesData.map(item => item.Total);
+            const ratings = salesData.map(item => item.Rating);
+            const paymentMethods = salesData.map(item => item.Payment);
+            const cogs = salesData.map(item => item.cogs);
+            const grossMargins = salesData.map(item => item["gross margin percentage"]);
+
+            // Visualization 1: Total Sales by Branch (Bar Chart)
+            const branchSales = countByCategory(branches);
+            Plotly.newPlot('totalSalesByBranch', [{
+                x: branchSales.categories,
+                y: branchSales.counts,
+                type: 'bar',
+                marker: { color: 'skyblue' }
+            }], { title: 'Total Sales by Branch', xaxis: { title: 'Branch' }, yaxis: { title: 'Sales Total' } });
+
+            // Visualization 2: Total Sales by City (Bar Chart)
+            const citySales = countByCategory(cities);
+            Plotly.newPlot('totalSalesByCity', [{
+                x: citySales.categories,
+                y: citySales.counts,
+                type: 'bar',
+                marker: { color: 'lightgreen' }
+            }], { title: 'Total Sales by City', xaxis: { title: 'City' }, yaxis: { title: 'Sales Total' } });
+
+            // Visualization 3: Sales Trends Over Time (Line Chart)
+            const monthlySales = aggregateSalesByTime(dates, totalSales);
+            Plotly.newPlot('salesTrends', [{
+                x: monthlySales.dates,
+                y: monthlySales.sales,
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: 'orange' }
+            }], { title: 'Sales Trends Over Time', xaxis: { title: 'Date' }, yaxis: { title: 'Sales Total' } });
+
+            // Visualization 4: Customer Type Distribution (Pie Chart)
+            const customerTypeCounts = countByCategory(customerTypes);
+            Plotly.newPlot('customerTypeDistribution', [{
+                labels: customerTypeCounts.categories,
+                values: customerTypeCounts.counts,
+                type: 'pie'
+            }], { title: 'Customer Type Distribution' });
+
+            // Visualization 5: Gender-Based Sales Distribution (Bar Chart)
+            const genderSalesCounts = countByCategory(genders);
+            Plotly.newPlot('genderSalesDistribution', [{
+                x: genderSalesCounts.categories,
+                y: genderSalesCounts.counts,
+                type: 'bar',
+                marker: { color: 'purple' }
+            }], { title: 'Gender-Based Sales Distribution', xaxis: { title: 'Gender' }, yaxis: { title: 'Sales Total' } });
+
+            // Visualization 6: Product Line Sales Breakdown (Bar Chart)
+            const productLineSales = countByCategory(productLines);
+            Plotly.newPlot('productLineSales', [{
+                x: productLineSales.categories,
+                y: productLineSales.counts,
+                type: 'bar',
+                marker: { color: 'teal' }
+            }], { title: 'Product Line Sales Breakdown', xaxis: { title: 'Product Line' }, yaxis: { title: 'Sales Total' } });
+
+            // Visualization 7: Average Order Value (AOV) - Gauge Chart (Centered)
+            const avgOrderValue = calculateAverage(totalSales);
+            Plotly.newPlot('averageOrderValue', [{
+                type: 'indicator',
+                mode: 'gauge+number',
+                value: avgOrderValue,
+                title: { text: 'Average Order Value (AOV)', font: { size: 18 } },
+                gauge: {
+                    axis: { range: [null, Math.max(...totalSales)] },
+                    bar: { color: 'darkblue' },
+                    steps: [
+                        { range: [0, 200], color: 'lightgray' },
+                        { range: [200, 400], color: 'lightgreen' },
+                        { range: [400, 600], color: 'yellow' },
+                        { range: [600, Math.max(...totalSales)], color: 'red' }
+                    ]
+                }
+            }], { width: 500, height: 400 });
+
+            // Visualization 8: Payment Method Distribution (Pie Chart)
+            const paymentMethodCounts = countByCategory(paymentMethods);
+            Plotly.newPlot('paymentMethodDistribution', [{
+                labels: paymentMethodCounts.categories,
+                values: paymentMethodCounts.counts,
+                type: 'pie'
+            }], { title: 'Payment Method Distribution' });
+
+            // Visualization 9: Gross Margin Percentage by Product Line (Bar Chart)
+            const grossMarginByProductLine = aggregateGrossMarginByProductLine(productLines, grossMargins);
+            Plotly.newPlot('grossMarginByProductLine', [{
+                x: grossMarginByProductLine.categories,
+                y: grossMarginByProductLine.margins,
+                type: 'bar',
+                marker: { color: 'gold' }
+            }], { title: 'Gross Margin Percentage by Product Line', xaxis: { title: 'Product Line' }, yaxis: { title: 'Gross Margin Percentage' } });
+
+            // Visualization 10: Customer Satisfaction (Rating) vs. Sales (Scatter Plot)
+            Plotly.newPlot('customerSatisfactionVsSales', [{
+                x: ratings,
+                y: totalSales,
+                mode: 'markers',
+                type: 'scatter',
+                marker: { color: 'red', size: 10 }
+            }], { title: 'Customer Satisfaction (Rating) vs. Sales', xaxis: { title: 'Rating' }, yaxis: { title: 'Sales Total' } });
+        }
+
+        // Helper Function: Count Occurrences by Category (e.g., Branch, City, etc.)
+        function countByCategory(categories) {
+            const categoryCounts = {};
+            categories.forEach(category => {
+                categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+            });
+            return { categories: Object.keys(categoryCounts), counts: Object.values(categoryCounts) };
+        }
+
+        // Helper Function: Aggregate Sales by Date
+        function aggregateSalesByTime(dates, sales) {
+            const salesByMonth = {};
+            dates.forEach((date, i) => {
+                const month = `${date.getFullYear()}-${date.getMonth() + 1}`;
+                if (!salesByMonth[month]) salesByMonth[month] = 0;
+                salesByMonth[month] += sales[i];
+            });
+            const months = Object.keys(salesByMonth);
+            const totalSales = months.map(month => salesByMonth[month]);
+            return { dates: months, sales: totalSales };
+        }
+
+        // Helper Function: Calculate Average
+        function calculateAverage(values) {
+            const total = values.reduce((sum, value) => sum + value, 0);
+            return total / values.length;
+        }
+
+        // Helper Function: Aggregate Gross Margin by Product Line
+        function aggregateGrossMarginByProductLine(productLines, margins) {
+            const marginByLine = {};
+            productLines.forEach((line, i) => {
+                if (!marginByLine[line]) marginByLine[line] = [];
+                marginByLine[line].push(margins[i]);
+            });
+            const categories = Object.keys(marginByLine);
+            const averages = categories.map(category => {
+                const marginsForLine = marginByLine[category];
+                return marginsForLine.reduce((sum, value) => sum + value, 0) / marginsForLine.length;
+            });
+            return { categories, margins: averages };
+        }
+    </script>
+</body>
+</html>
